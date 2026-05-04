@@ -19,7 +19,8 @@
   "scripts": {
     "start": "probot run ./index.js",
     "dev": "nodemon --exec 'probot run ./index.js'",
-    "lint": "node --check index.js && node --check src/security-scanner.js && node --check src/repo-automation.js"
+    "lint": "node --check index.js && node --check src/security-scanner.js && node --check src/repo-automation.js",
+    "server": "npm start"
   },
   "keywords": [
     "github",
