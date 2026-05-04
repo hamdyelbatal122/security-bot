@@ -8,7 +8,7 @@ const { setupRepository, labelPullRequest } = require('./src/repo-automation');
  * @param {import('probot').Probot} app
  */
 module.exports = (app) => {
-  app.log.info('edu-security-bot is running 🚀');
+  app.log.info('security-bot is running 🚀');
 
   // ─────────────────────────────────────────────
   // EVENT 1: New repository created
@@ -25,7 +25,7 @@ module.exports = (app) => {
   // → Post a summary comment on the PR
   // → Apply security severity label
   // ─────────────────────────────────────────────
-  app.on(['pull_request.opened', 'pull_request.synchronize'], async (context) => {
+  app.on(['pull_request.opened', 'pull_request.synchronize', 'pull_request.reopened'], async (context) => {
     const pr = context.payload.pull_request;
     const repo = context.repo();
 
@@ -57,7 +57,7 @@ module.exports = (app) => {
           pull_number: pr.number,
           commit_id: pr.head.sha,
           event: allFindings.length > 0 ? 'REQUEST_CHANGES' : 'APPROVE',
-          body: '🔐 **edu-security-bot** — Security scan complete. See inline comments below.',
+          body: '🔐 **security-bot** — Security scan complete. See inline comments below.',
           comments: inlineComments.map(c => ({
             path: c.path,
             line: c.line,
@@ -87,7 +87,7 @@ module.exports = (app) => {
       });
       const botComments = comments.filter(c =>
         c.user.type === 'Bot' &&
-        c.body.includes('edu-security-bot')
+        c.body.includes('security-bot')
       );
       for (const c of botComments) {
         await context.octokit.issues.deleteComment({ ...repo, comment_id: c.id }).catch(() => {});

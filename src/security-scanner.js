@@ -66,7 +66,7 @@ const RULES = [
     severity: 'MEDIUM',
     category: 'Security Misconfiguration',
     description: '`var_dump`, `dd()`, or debug output left in code',
-    pattern: /\b(var_dump|print_r|console\.log|dd\(|dump\()\s*\(/g,
+    pattern: /\b(var_dump|print_r|console\.log|dd|dump)\s*\(/g,
     advice: 'Remove all debug output before committing to production branches.',
   },
   {
@@ -96,6 +96,46 @@ const RULES = [
     description: 'Sensitive data (password/token) potentially logged',
     pattern: /(?:log|logger|console)\s*\.?\s*(?:info|warn|error|debug|log)\s*\([^)]*(?:password|token|secret)[^)]*\)/gi,
     advice: 'Never log sensitive fields. Mask or omit credentials from log output.',
+  },
+
+  // A03 — Injection (Code)
+  {
+    id: 'SEC011',
+    severity: 'CRITICAL',
+    category: 'Code Injection',
+    description: '`eval()` or `new Function()` used with dynamic input',
+    pattern: /\beval\s*\(|new\s+Function\s*\(/gi,
+    advice: 'Never use `eval()` or `new Function()`. Use safer alternatives like `JSON.parse()` for data parsing.',
+  },
+
+  // A10 — Server-Side Request Forgery (SSRF)
+  {
+    id: 'SEC012',
+    severity: 'HIGH',
+    category: 'SSRF',
+    description: 'Unvalidated user-supplied URL passed to HTTP fetch/request',
+    pattern: /(?:fetch|axios|request|http\.get|https\.get)\s*\(\s*(?:req\.|request\.|params\.|query\.|body\.)/gi,
+    advice: 'Validate and whitelist URLs before making server-side HTTP requests. Use an allowlist of trusted domains.',
+  },
+
+  // A08 — Software and Data Integrity Failures
+  {
+    id: 'SEC013',
+    severity: 'HIGH',
+    category: 'Insecure Deserialization',
+    description: 'Potentially unsafe object deserialization detected',
+    pattern: /(?:unserialize|pickle\.loads|yaml\.load\s*\(|marshal\.loads)\s*\(/gi,
+    advice: 'Avoid deserializing untrusted data. Use `yaml.safe_load()` instead of `yaml.load()`, and validate input before deserializing.',
+  },
+
+  // A03 — Injection (NoSQL)
+  {
+    id: 'SEC014',
+    severity: 'CRITICAL',
+    category: 'NoSQL Injection',
+    description: 'Potential NoSQL injection — user input used directly in MongoDB query operator',
+    pattern: /(?:find|findOne|updateOne|deleteOne|aggregate)\s*\(\s*\{[^}]*\$(?:where|gt|lt|ne|in|nin|regex|or|and)/gi,
+    advice: 'Sanitize and validate all fields before using them in NoSQL queries. Use strict type checks and schema validation (e.g., Mongoose).',
   },
 ];
 
@@ -162,7 +202,7 @@ function buildSummaryComment(findings) {
       '',
       'No security vulnerabilities were detected in this pull request.',
       '',
-      '> Scanned by **edu-security-bot** · Powered by [OWASP Top 10](https://owasp.org/www-project-top-ten/)',
+      '> Scanned by **security-bot** · Powered by [OWASP Top 10](https://owasp.org/www-project-top-ten/)',
     ].join('\n');
   }
 
@@ -196,7 +236,7 @@ function buildSummaryComment(findings) {
   }
 
   lines.push('---');
-  lines.push('> Scanned by **edu-security-bot** · Powered by [OWASP Top 10](https://owasp.org/www-project-top-ten/)');
+  lines.push('> Scanned by **security-bot** · Powered by [OWASP Top 10](https://owasp.org/www-project-top-ten/)');
 
   return lines.join('\n');
 }

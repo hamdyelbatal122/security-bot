@@ -18,8 +18,8 @@ const BRANCH_PROTECTION = {
 
 const LABELS = [
   { name: 'security:critical', color: 'B60205', description: 'Critical security vulnerability' },
-  { name: 'security:high',     color: 'E4E669', description: 'High severity security issue' },
-  { name: 'security:medium',   color: 'FFA500', description: 'Medium severity security issue' },
+  { name: 'security:high',     color: 'D93F0B', description: 'High severity security issue' },
+  { name: 'security:medium',   color: 'FBCA04', description: 'Medium severity security issue' },
   { name: 'security:clean',    color: '0E8A16', description: 'No security issues found' },
   { name: 'needs-review',      color: 'C5DEF5', description: 'Waiting for instructor review' },
   { name: 'assignment',        color: '7057FF', description: 'Student assignment' },
@@ -134,7 +134,7 @@ function buildWelcomeBody(repo) {
   return `
 ## Welcome to \`${repo.repo}\`! 🎓
 
-This repository is part of your course and is managed by **edu-security-bot**.
+This repository is part of your course and is managed by **security-bot**.
 
 ### What this bot does automatically:
 
@@ -164,7 +164,7 @@ This repository is part of your course and is managed by **edu-security-bot**.
 - No debug output (\`var_dump\`, \`dd()\`, etc.)
 
 ---
-> 🤖 Managed by **edu-security-bot** — [GitHub Developer Program](https://docs.github.com/en/developers)
+> 🤖 Managed by **security-bot** — [GitHub Developer Program](https://docs.github.com/en/developers)
 `.trim();
 }
 

@@ -1,4 +1,26 @@
+# Dependencies
 node_modules/
+
+# Environment & secrets — NEVER commit these
 .env
-private-key.pem
 *.pem
+private-key.pem
+*.key
+*.p12
+*.pfx
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+

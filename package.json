@@ -1,7 +1,7 @@
 {
-  "name": "edu-security-bot",
+  "name": "security-bot",
   "version": "1.0.0",
-  "description": "GitHub App that automates student repos and scans code for OWASP Top 10 vulnerabilities",
+  "description": "GitHub App that scans every Pull Request for OWASP Top 10 vulnerabilities and automates repository setup",
   "main": "index.js",
   "scripts": {
     "start": "probot run ./index.js",
