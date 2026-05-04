@@ -16,6 +16,7 @@ module.exports = (app, { addHandler } = {}) => {
 
   // ── Dashboard ──────────────────────────────────
   if (addHandler) {
+    const appState = eventBus.getState();
     const port = process.env.PORT || '3000';
     const localBase = 'http://localhost:' + port;
     const publicBase = (process.env.APP_BASE_URL || '').replace(/\/$/, '');
@@ -30,6 +31,9 @@ module.exports = (app, { addHandler } = {}) => {
       webhookProxyUrl: process.env.WEBHOOK_PROXY_URL || '',
       connectUrl,
       publicConnectUrl,
+      workspaceRoot: process.cwd(),
+      appConnected: appState.appConnected,
+      appConnectedAt: appState.appConnectedAt,
     }));
     app.log.info('Dashboard available at http://localhost:' + port + '/dashboard');
   }
@@ -41,6 +45,7 @@ module.exports = (app, { addHandler } = {}) => {
   // → Setup branch protection, labels, welcome issue
   // ─────────────────────────────────────────────
   app.on('repository.created', async (context) => {
+    eventBus.markAppConnected('repository.created');
     await setupRepository(context);
     eventBus.emit('repo.setup', { repo: context.payload.repository.full_name });
   });
@@ -59,6 +64,7 @@ module.exports = (app, { addHandler } = {}) => {
     const repoName = repo.owner + '/' + repo.repo;
 
     try {
+    eventBus.markAppConnected('pull_request');
     app.log.info(`Scanning PR #${prId} in ${repoName}`);
     eventBus.emit('scan.started', { pr: prId, repo: repoName });
 
@@ -169,6 +175,7 @@ module.exports = (app, { addHandler } = {}) => {
   // → Warn if sensitive patterns are detected
   // ─────────────────────────────────────────────
   app.on('push', async (context) => {
+    eventBus.markAppConnected('push');
     const { ref, commits, repository } = context.payload;
     const defaultBranch = repository.default_branch;
 
@@ -220,5 +227,13 @@ module.exports = (app, { addHandler } = {}) => {
       branch: defaultBranch,
       count: allFindings.length,
     });
+  });
+
+  app.on('installation.created', async () => {
+    eventBus.markAppConnected('installation.created');
+  });
+
+  app.on('installation_repositories.added', async () => {
+    eventBus.markAppConnected('installation_repositories.added');
   });
 };

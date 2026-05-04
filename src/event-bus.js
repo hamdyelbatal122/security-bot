@@ -7,6 +7,11 @@ emitter.setMaxListeners(100);
 
 const MAX_HISTORY = 300;
 const history = [];
+const state = {
+  appConnected: false,
+  appConnectedAt: null,
+  appConnectionSource: '',
+};
 
 function emit(type, data) {
   const event = { type, data, timestamp: new Date().toISOString() };
@@ -24,4 +29,20 @@ function getHistory() {
   return [...history];
 }
 
-module.exports = { emit, subscribe, getHistory };
+function markAppConnected(source) {
+  if (!state.appConnected) {
+    state.appConnected = true;
+    state.appConnectedAt = new Date().toISOString();
+  }
+  state.appConnectionSource = source || state.appConnectionSource || 'webhook';
+  emit('app.connected', {
+    source: state.appConnectionSource,
+    connectedAt: state.appConnectedAt,
+  });
+}
+
+function getState() {
+  return { ...state };
+}
+
+module.exports = { emit, subscribe, getHistory, markAppConnected, getState };

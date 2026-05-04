@@ -1,9 +1,56 @@
 'use strict';
 
-const { getHistory, subscribe } = require('./event-bus');
+const fs = require('fs');
+const path = require('path');
+
+const { RULES } = require('./security-scanner');
+const { getHistory, subscribe, getState } = require('./event-bus');
 
 function safeJson(obj) {
   return JSON.stringify(obj).replace(/<\//g, '<\\/');
+}
+
+function scanSourceText(filename, source) {
+  const findings = [];
+  const lines = String(source || '').split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const codeLine = lines[i];
+    for (const rule of RULES) {
+      rule.pattern.lastIndex = 0;
+      if (rule.pattern.test(codeLine)) {
+        findings.push({
+          rule,
+          filename,
+          line: i + 1,
+          code: codeLine.trim(),
+        });
+      }
+    }
+  }
+
+  return findings;
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let raw = '';
+    req.on('data', (chunk) => {
+      raw += chunk;
+      if (raw.length > 1024 * 1024) {
+        reject(new Error('Request body too large'));
+      }
+    });
+    req.on('end', () => {
+      if (!raw) return resolve({});
+      try {
+        resolve(JSON.parse(raw));
+      } catch {
+        reject(new Error('Invalid JSON body'));
+      }
+    });
+    req.on('error', reject);
+  });
 }
 
 function getDashboardHTML(config) {
@@ -13,6 +60,8 @@ function getDashboardHTML(config) {
     appId: config.appId,
     port: config.port,
     webhookProxyUrl: config.webhookProxyUrl,
+    appConnected: !!config.appConnected,
+    appConnectedAt: config.appConnectedAt || '',
   });
 
   return `<!DOCTYPE html>
@@ -75,6 +124,10 @@ aside{width:300px;min-width:300px;background:var(--surface);
   cursor:pointer;white-space:nowrap;flex-shrink:0}
 .btn-copy:hover{background:var(--border)}
 .copy-ok{color:var(--green);font-size:11px;margin-top:4px;display:none}
+.manual-scan{display:flex;flex-direction:column;gap:8px}
+.manual-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  padding:8px;color:var(--text);font-size:12px;font-family:'SFMono-Regular',Consolas,monospace}
+.manual-hint{font-size:11px;color:var(--muted);line-height:1.4}
 
 /* Stats */
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -179,7 +232,7 @@ input[type="checkbox"]{accent-color:var(--blue);cursor:pointer}
 <div class="layout">
   <aside>
 
-    <div class="sidebar-section">
+    <div class="sidebar-section" id="connectSection">
       <h3>Connect to GitHub</h3>
       <div class="connect-card">
         <p>Click below to create and install the GitHub App on your account. No manual variable copying required.</p>
@@ -206,6 +259,15 @@ input[type="checkbox"]{accent-color:var(--blue);cursor:pointer}
             <button class="btn-copy" onclick="copyUrl('public')">Copy</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Manual Scan</h3>
+      <div class="connect-card manual-scan">
+        <input id="manualPath" class="manual-input" value="test/vulnerable-example.js" />
+        <button class="btn btn-primary" id="scanBtn" onclick="runLocalScan()">Run Local Scan</button>
+        <div class="manual-hint">Run scanner on a workspace file path and stream results live into this dashboard.</div>
       </div>
     </div>
 
@@ -314,6 +376,21 @@ function applyConfig(cfg) {
     document.getElementById('publicSection').style.display = 'block';
     document.getElementById('publicUrlInput').value = cfg.publicConnectUrl;
   }
+  setConnectionState(!!cfg.appConnected, cfg.appConnectedAt || '');
+}
+
+function setConnectionState(connected, connectedAt) {
+  const connectSection = document.getElementById('connectSection');
+  const cfgStatus = document.getElementById('cfgStatus');
+  if (connected) {
+    connectSection.style.display = 'none';
+    cfgStatus.textContent = connectedAt ? 'Connected' : 'Connected';
+    cfgStatus.className = 'badge-online';
+  } else {
+    connectSection.style.display = 'block';
+    cfgStatus.textContent = 'Waiting Link';
+    cfgStatus.className = 'badge-online';
+  }
 }
 
 function updateUptime() {
@@ -359,6 +436,9 @@ async function loadHistory() {
 function handleEvent(event, fromHistory) {
   const { type, data, timestamp } = event;
   if (type === 'connected') return;
+  if (type === 'app.connected') {
+    setConnectionState(true, data && data.connectedAt ? data.connectedAt : '');
+  }
   incrementStats(type, data);
   const item = buildItem(type, data, timestamp);
   if (!item) return;
@@ -381,6 +461,33 @@ function incrementStats(type, data) {
     const sev = (data && data.severity || '').toUpperCase();
     if (sev === 'CRITICAL') document.getElementById('statCritical').textContent = ++stats.critical;
     if (sev === 'HIGH')     document.getElementById('statHigh').textContent     = ++stats.high;
+  }
+}
+
+async function runLocalScan() {
+  const scanBtn = document.getElementById('scanBtn');
+  const requestedPath = (document.getElementById('manualPath').value || '').trim() || 'test/vulnerable-example.js';
+  scanBtn.disabled = true;
+  scanBtn.textContent = 'Scanning...';
+  try {
+    const res = await fetch('/api/scan/local', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: requestedPath }),
+    });
+    const payload = await res.json();
+    if (!res.ok || !payload.ok) {
+      throw new Error(payload.error || 'Scan request failed');
+    }
+  } catch (err) {
+    handleEvent({
+      type: 'scan.error',
+      data: { pr: 'local', message: err.message || 'Local scan failed' },
+      timestamp: new Date().toISOString(),
+    }, false);
+  } finally {
+    scanBtn.disabled = false;
+    scanBtn.textContent = 'Run Local Scan';
   }
 }
 
@@ -493,8 +600,50 @@ function copyUrl(type) {
  */
 function createDashboardHandler(config) {
   return async function dashboardHandler(req, res) {
-    if (req.method !== 'GET') return false;
+    if (req.method !== 'GET' && req.method !== 'POST') return false;
     const path = (req.url || '/').split('?')[0];
+
+    if (path === '/api/scan/local' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody(req);
+        const workspaceRoot = config.workspaceRoot || process.cwd();
+        const targetPath = String(body.path || 'test/vulnerable-example.js');
+        const absoluteTarget = pathResolveSafe(workspaceRoot, targetPath);
+        if (!absoluteTarget) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Invalid path. File must be inside workspace.' }));
+          return true;
+        }
+        if (!fs.existsSync(absoluteTarget)) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'Target file not found.' }));
+          return true;
+        }
+
+        const source = fs.readFileSync(absoluteTarget, 'utf8');
+        const findings = scanSourceText(targetPath, source);
+
+        emitLocalScanEvents(targetPath, findings);
+
+        const bySeverity = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
+        for (const f of findings) {
+          bySeverity[f.rule.severity] = (bySeverity[f.rule.severity] || 0) + 1;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          ok: true,
+          file: targetPath,
+          count: findings.length,
+          bySeverity,
+        }));
+        return true;
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message || 'Local scan failed' }));
+        return true;
+      }
+    }
 
     // ── Dashboard HTML ──────────────────────────────
     if (path === '/dashboard') {
@@ -505,6 +654,7 @@ function createDashboardHandler(config) {
 
     // ── Status JSON ────────────────────────────────
     if (path === '/api/status') {
+      const state = getState();
       const body = JSON.stringify({
         status: 'online',
         uptime: Math.floor(process.uptime()),
@@ -513,6 +663,9 @@ function createDashboardHandler(config) {
         webhookProxyUrl: config.webhookProxyUrl,
         connectUrl: config.connectUrl,
         publicConnectUrl: config.publicConnectUrl || '',
+        appConnected: !!state.appConnected,
+        appConnectedAt: state.appConnectedAt,
+        appConnectionSource: state.appConnectionSource,
       });
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(body);
@@ -548,6 +701,44 @@ function createDashboardHandler(config) {
 
     return false;
   };
+}
+
+function pathResolveSafe(workspaceRoot, targetPath) {
+  const root = path.resolve(workspaceRoot);
+  const absolute = path.resolve(root, targetPath);
+  if (absolute === root || absolute.startsWith(root + path.sep)) {
+    return absolute;
+  }
+  return '';
+}
+
+function emitLocalScanEvents(targetPath, findings) {
+  const { emit } = require('./event-bus');
+  emit('scan.started', { pr: 'local', repo: 'workspace', target: targetPath });
+  for (const f of findings) {
+    emit('scan.finding', {
+      pr: 'local',
+      repo: 'workspace',
+      ruleId: f.rule.id,
+      severity: f.rule.severity,
+      description: f.rule.description,
+      filename: f.filename,
+      line: f.line,
+      code: f.code,
+    });
+  }
+  const severities = findings.map((f) => f.rule.severity);
+  let label = 'security:clean';
+  if (severities.includes('CRITICAL')) label = 'security:critical';
+  else if (severities.includes('HIGH')) label = 'security:high';
+  else if (findings.length > 0) label = 'security:medium';
+
+  emit('scan.completed', {
+    pr: 'local',
+    repo: 'workspace',
+    count: findings.length,
+    label,
+  });
 }
 
 module.exports = { createDashboardHandler };
