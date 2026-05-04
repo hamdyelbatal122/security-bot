@@ -17,6 +17,7 @@ function loadDefaults() {
     PRIVATE_KEY_PATH: './private-key.pem',
     WEBHOOK_SECRET: '',
     PORT: '3000',
+    APP_BASE_URL: '',
     WEBHOOK_PROXY_URL: 'https://smee.io/new',
     GITHUB_CLIENT_ID: '',
     GITHUB_CLIENT_SECRET: '',
@@ -59,6 +60,7 @@ function renderEnv(values) {
     `PRIVATE_KEY_PATH=${values.PRIVATE_KEY_PATH}`,
     `WEBHOOK_SECRET=${values.WEBHOOK_SECRET}`,
     `PORT=${values.PORT}`,
+    `APP_BASE_URL=${values.APP_BASE_URL}`,
     `WEBHOOK_PROXY_URL=${values.WEBHOOK_PROXY_URL}`,
   ];
 
@@ -109,6 +111,10 @@ async function run() {
     const portInput = (await rl.question(`Port [${defaults.PORT || '3000'}]: `)).trim();
     const port = portInput || defaults.PORT || '3000';
 
+    const appBaseUrl = (await rl.question(
+      `Public app base URL for shareable install link (optional)${defaults.APP_BASE_URL ? ` [${defaults.APP_BASE_URL}]` : ''}: `
+    )).trim() || defaults.APP_BASE_URL || '';
+
     const smeeInput = (await rl.question(
       `Smee webhook URL [${defaults.WEBHOOK_PROXY_URL || 'https://smee.io/new'}]: `
     )).trim();
@@ -133,6 +139,7 @@ async function run() {
       PRIVATE_KEY_PATH: privateKeyPath,
       WEBHOOK_SECRET: webhookSecret,
       PORT: String(port),
+      APP_BASE_URL: appBaseUrl,
       WEBHOOK_PROXY_URL: webhookProxyUrl,
       GITHUB_CLIENT_ID: oauthClientId,
       GITHUB_CLIENT_SECRET: oauthClientSecret,

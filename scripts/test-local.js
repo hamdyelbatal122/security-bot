@@ -42,6 +42,7 @@ function main() {
   console.log(`APP_ID: ${env.APP_ID}`);
   console.log(`PRIVATE_KEY_PATH: ${env.PRIVATE_KEY_PATH}`);
   console.log(`PORT: ${port}`);
+  console.log(`APP_BASE_URL: ${env.APP_BASE_URL || 'not set'}`);
   console.log(`WEBHOOK_PROXY_URL: ${env.WEBHOOK_PROXY_URL || 'not set'}`);
   console.log('Run npm run server to start the bot.');
 }

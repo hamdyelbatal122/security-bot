@@ -54,18 +54,36 @@ npm run server
 
 Use the GitHub App manifest flow to create and bind the app to your account quickly.
 
-1. Start the bot locally.
-2. Print the exact manifest URL for your current port.
+1. Start the bot.
+2. Print the manifest URLs.
 
 ```bash
 npm run connect:url
 ```
 
-3. Open the printed URL in your browser.
+3. Open the Local URL in your browser.
 4. Create the GitHub App from the manifest.
 5. Install the app on your account and select the repository you want to test.
 
 This eliminates repeated manual setup and keeps app configuration consistent with your codebase.
+
+## Make Account Linking Easy for Other People
+
+To let other GitHub users create their own app from your hosted bot instance, set APP_BASE_URL to your public bot URL.
+
+Example in .env:
+
+```env
+APP_BASE_URL=https://security-bot.your-domain.com
+```
+
+Then run:
+
+```bash
+npm run connect:url
+```
+
+The command prints a Public (shareable) manifest URL. Share that URL with other users so they can create and install the app in their own accounts without manual variable copying.
 
 ## See What the Bot Does Locally
 
