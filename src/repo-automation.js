@@ -120,11 +120,23 @@ async function labelPullRequest(context, pullNumber, findings) {
     else                                     labelName = 'security:medium';
   }
 
-  await context.octokit.issues.addLabels({
-    ...repo,
-    issue_number: pullNumber,
-    labels: [labelName],
-  });
+  // Ensure the label exists before applying it
+  const labelDef = LABELS.find(l => l.name === labelName);
+  if (labelDef) {
+    try {
+      await context.octokit.issues.createLabel({ ...repo, ...labelDef });
+    } catch { /* already exists */ }
+  }
+
+  try {
+    await context.octokit.issues.addLabels({
+      ...repo,
+      issue_number: pullNumber,
+      labels: [labelName],
+    });
+  } catch (err) {
+    context.log.warn(`Could not add label ${labelName}:`, err.message);
+  }
 }
 
 /**

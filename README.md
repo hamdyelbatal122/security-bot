@@ -46,71 +46,261 @@
 
 ---
 
-## 🚀 Quick Start
+## 🚀 تشغيل المشروع
 
-### 1️⃣ Install the App
+هذا القسم يحتوي كل ما تحتاجه لتشغيل البوت محلياً من الصفر، وربطه بـ GitHub App، ثم اختباره على Pull Request حقيقي.
 
-1. Go to [GitHub App Marketplace](https://github.com/marketplace) or [create manually](https://github.com/settings/apps/new)
-2. Select repositories to install on
-3. Grant permissions (contents, pull_requests, issues, administration)
-4. Done! The bot is now active.
+### 1. المتطلبات
 
-### 2️⃣ Local Development
+- Node.js `18+` أو `20+`
+- `npm`
+- حساب GitHub
+- GitHub App على حسابك
+- ملف private key بصيغة `.pem`
+- قناة Smee للـ webhooks
+
+التحقق من البيئة:
 
 ```bash
-# Clone the repository
-git clone https://github.com/hamdyelbatal122/security-bot.git
-cd security-bot
-
-# Install dependencies
-npm install
-
-# Create .env from example
-cp .env.example .env
-# Fill in: APP_ID, WEBHOOK_SECRET, PRIVATE_KEY_PATH
-
-# Start Smee forwarding in one terminal
-npx smee -u https://smee.io/Fj2wCHQ3uZfiQf59 -t http://localhost:3000/api/webhook
-
-# Start the app in another terminal
-npm run server
+node -v
+npm -v
 ```
 
-If you have not generated and downloaded your GitHub App private key yet, Probot will enter setup mode at `http://localhost:3000`. Once the private key exists locally, restart the server.
+### 2. تحميل المشروع
 
-### 3️⃣ Required Local Credentials
+```bash
+git clone https://github.com/hamdyelbatal122/security-bot.git
+cd security-bot
+npm install
+```
 
-You need these three values from your GitHub App settings page:
+### 3. إنشاء GitHub App
 
-- `APP_ID`
-- `WEBHOOK_SECRET`
-- `PRIVATE_KEY_PATH` pointing to your downloaded `.pem` file
+من GitHub افتح:
 
-Example:
+`Settings` → `Developer settings` → `GitHub Apps` → `New GitHub App`
+
+املأ الحقول الأساسية كالتالي:
+
+- `GitHub App name`: اسم فريد مثل `hamdy-security-bot`
+- `Homepage URL`: `https://github.com/hamdyelbatal122/security-bot`
+- `Webhook URL`: `https://smee.io/Fj2wCHQ3uZfiQf59`
+- `Webhook secret`: قيمة سرية عشوائية تحفظها عندك
+- `Where can this GitHub App be installed?`: `Only on this account`
+
+الصلاحيات المطلوبة:
+
+- `Contents`: `Read-only`
+- `Pull requests`: `Read and write`
+- `Issues`: `Read and write`
+- `Checks`: `Read and write`
+- `Administration`: `Read and write`
+- `Metadata`: `Read-only`
+
+الأحداث المطلوبة:
+
+- `Pull request`
+- `Push`
+- `Repository`
+
+بعد إنشاء الـ App:
+
+1. انسخ `App ID`
+2. اضغط `Generate a private key`
+3. انقل ملف الـ `.pem` إلى جذر المشروع
+
+مثال:
+
+```bash
+mv ~/Downloads/*.pem ./private-key.pem
+```
+
+### 4. إعداد ملف البيئة
+
+أنشئ ملف `.env` من المثال:
+
+```bash
+cp .env.example .env
+```
+
+املأه بهذه القيم:
 
 ```env
 APP_ID=123456
-WEBHOOK_SECRET=replace-with-your-secret
 PRIVATE_KEY_PATH=./private-key.pem
-WEBHOOK_PROXY_URL=https://smee.io/Fj2wCHQ3uZfiQf59
+WEBHOOK_SECRET=replace-with-your-secret
 PORT=3000
+WEBHOOK_PROXY_URL=https://smee.io/Fj2wCHQ3uZfiQf59
 ```
 
-### 4️⃣ Deployment
+شرح المتغيرات:
 
-Deploy to **Heroku**, **Railway**, **Vercel**, or your own server:
+- `APP_ID`: رقم الـ GitHub App
+- `PRIVATE_KEY_PATH`: مسار ملف الـ private key الذي نزلته من GitHub
+- `WEBHOOK_SECRET`: نفس القيمة التي وضعتها في إعدادات GitHub App
+- `PORT`: المنفذ المحلي لتشغيل Probot
+- `WEBHOOK_PROXY_URL`: قناة Smee لتحويل الـ webhooks إلى جهازك المحلي
+
+### 5. تثبيت التطبيق على Repository
+
+بعد إنشاء الـ GitHub App:
+
+1. افتح صفحة الـ App
+2. اختر `Install App`
+3. اختر الحساب الخاص بك
+4. اختر `Only select repositories`
+5. اختر repository تريد تجربته عليه
+6. أكمل التثبيت
+
+### 6. تشغيل Smee و Probot
+
+افتح نافذتين Terminal.
+
+النافذة الأولى لتشغيل webhook forwarding:
 
 ```bash
-# Using npm
+npx smee -u https://smee.io/Fj2wCHQ3uZfiQf59 -t http://localhost:3000/api/webhook
+```
+
+المخرجات المتوقعة:
+
+```text
+Forwarding https://smee.io/Fj2wCHQ3uZfiQf59 to http://localhost:3000/api/webhook
+Connected https://smee.io/Fj2wCHQ3uZfiQf59
+```
+
+النافذة الثانية لتشغيل البوت:
+
+```bash
+npm run server
+```
+
+المخرجات المتوقعة:
+
+```text
+security-bot is running
+Listening on http://localhost:3000
+```
+
+إذا ظهر `setup mode` فهذا معناه أن واحداً من هذه القيم لم يتم ضبطه بشكل صحيح:
+
+- `APP_ID`
+- `PRIVATE_KEY_PATH`
+- `WEBHOOK_SECRET`
+
+### 7. اختبار البوت فعلياً
+
+أنشئ repository تجريبي أو استخدم repository لديك ومثبت عليه الـ App، ثم:
+
+```bash
+git checkout -b test-security-bot
+printf "const password = 'super-secret-123';\n" > test.js
+git add test.js
+git commit -m "test: trigger security scan"
+git push origin test-security-bot
+```
+
+بعدها افتح Pull Request.
+
+المفروض أن البوت يقوم بالآتي:
+
+- يقرأ diff الخاص بالـ PR
+- يكتشف الـ hardcoded secret
+- يضيف inline review comment
+- يضيف summary comment
+- يضيف label مناسب مثل `security:critical`
+
+### 8. أوامر التشغيل المهمة
+
+```bash
+# تشغيل السيرفر
+npm run server
+
+# تشغيل التطوير مع reload
+npm run dev
+
+# فحص syntax للملفات
+npm run lint
+```
+
+### 9. المشاكل الشائعة
+
+#### `Private key does not exists at path`
+
+السبب:
+
+- ملف الـ `.pem` غير موجود
+- أو `PRIVATE_KEY_PATH` في `.env` غير صحيح
+
+الحل:
+
+```bash
+ls -l ./private-key.pem
+```
+
+إذا لم يكن الملف موجوداً، نزّله من إعدادات الـ GitHub App ثم أعد تشغيل السيرفر.
+
+#### `Port 3000 is already in use`
+
+السبب:
+
+- يوجد process أخرى تشغل نفس المنفذ
+
+الحل:
+
+```bash
+PORT=3001 npm run server
+```
+
+وفي هذه الحالة شغّل Smee على نفس المنفذ:
+
+```bash
+npx smee -u https://smee.io/Fj2wCHQ3uZfiQf59 -t http://localhost:3001/api/webhook
+```
+
+#### لا تصل أي webhooks
+
+راجع التالي:
+
+- الـ App مثبت على نفس الـ repository
+- `Webhook URL` في GitHub App هو نفس رابط Smee
+- أمر Smee شغال فعلاً
+- السيرفر المحلي شغال بدون errors
+
+#### `Invalid webhook signature`
+
+السبب:
+
+- `WEBHOOK_SECRET` في `.env` لا يطابق GitHub App settings
+
+الحل:
+
+- حدّث القيمة في `.env`
+- أعد تشغيل السيرفر
+
+### 10. التشغيل في الإنتاج
+
+للتشغيل على سيرفر حقيقي:
+
+```bash
 npm install
+npm run lint
 npm start
 ```
 
-Environment variables:
+في الإنتاج لا تستخدم Smee. بدلاً من ذلك:
+
+- اجعل `Webhook URL` يشير مباشرة إلى سيرفرك
+- خزن القيم السرية في متغيرات بيئة آمنة
+- لا ترفع ملف `.pem` إلى git نهائياً
+
+الحد الأدنى المطلوب في الإنتاج:
+
 ```env
-APP_ID=                 # From GitHub App settings
-PRIVATE_KEY_PATH=       # Path to your private-key.pem
-WEBHOOK_SECRET=         # Your webhook secret
+APP_ID=123456
+PRIVATE_KEY_PATH=/absolute/path/to/private-key.pem
+WEBHOOK_SECRET=replace-with-your-secret
+PORT=3000
 ```
 
 ---
