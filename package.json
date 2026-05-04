@@ -1,0 +1,20 @@
+{
+  "name": "edu-security-bot",
+  "version": "1.0.0",
+  "description": "GitHub App that automates student repos and scans code for OWASP Top 10 vulnerabilities",
+  "main": "index.js",
+  "scripts": {
+    "start": "probot run ./index.js",
+    "dev": "nodemon --exec 'probot run ./index.js'"
+  },
+  "keywords": [],
+  "author": "hamdyelbatal122",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "probot": "^14.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

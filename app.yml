@@ -1,0 +1,25 @@
+name: edu-security-bot
+description: >
+  Automates student repositories and scans every Pull Request for
+  OWASP Top 10 security vulnerabilities, posting inline comments
+  and severity labels automatically.
+
+url: https://github.com/hamdyelbatal122/edu-security-bot
+
+# Webhook events the app subscribes to
+default_events:
+  - repository
+  - pull_request
+  - push
+
+# Required permissions
+default_permissions:
+  # Read repo contents to fetch diffs
+  contents: read
+  # Post comments and labels on issues/PRs
+  issues: write
+  pull_requests: write
+  # Apply branch protection rules
+  administration: write
+  # Read metadata (required by all apps)
+  metadata: read
