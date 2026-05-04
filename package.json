@@ -19,7 +19,12 @@
   "scripts": {
     "start": "probot run ./index.js",
     "dev": "nodemon --exec 'probot run ./index.js'",
-    "lint": "node --check index.js && node --check src/security-scanner.js && node --check src/repo-automation.js",
+    "setup": "node ./scripts/setup.js",
+    "setup:quick": "npm run setup && npm run test:local",
+    "connect:url": "node ./scripts/connect-url.js",
+    "demo:scan": "node ./scripts/demo-scan.js",
+    "test:local": "node ./scripts/test-local.js",
+    "lint": "node --check index.js && node --check src/security-scanner.js && node --check src/repo-automation.js && node --check scripts/setup.js && node --check scripts/test-local.js && node --check scripts/demo-scan.js && node --check scripts/connect-url.js",
     "server": "npm start"
   },
   "keywords": [

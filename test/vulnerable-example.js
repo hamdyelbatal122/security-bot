@@ -1,11 +1,11 @@
-// ⚠️ هذا ملف للاختبار فقط — يحتوي على ثغرات أمنية مقصودة
-// يُستخدم لاختبار security-bot
+// Test fixture only: intentionally contains security vulnerabilities.
+// Used to validate security-bot detection and reporting behavior.
 
 const mysql = require('mysql');
 const express = require('express');
 const app = express();
 
-// SEC001 - SQL Injection: استخدام مدخلات المستخدم مباشرة في query
+// SEC001 - SQL Injection: user-controlled input is concatenated into SQL.
 app.get('/user', (req, res) => {
   const id = req.query.id;
   const query = "SELECT * FROM users WHERE id = '" + id + "'";
@@ -14,7 +14,7 @@ app.get('/user', (req, res) => {
   });
 });
 
-// SEC002 - XSS: إدخال HTML مباشرة بدون sanitization
+// SEC002 - XSS: HTML is rendered without sanitization.
 app.get('/hello', (req, res) => {
   const name = req.query.name;
   res.send('<h1>Hello ' + name + '</h1>');
