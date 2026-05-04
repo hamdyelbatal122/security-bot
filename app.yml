@@ -1,8 +1,9 @@
 name: security-bot
 description: >
-  Scans every Pull Request for OWASP Top 10 security vulnerabilities,
-  posts inline review comments with actionable fixes, applies severity
-  labels automatically, and sets up branch protection for new repositories.
+  Automated security code review for every Pull Request. Scans code diffs against
+  14 OWASP Top 10 rules, posts inline review comments with actionable fix guidance,
+  applies severity labels, and configures branch protection on new repositories.
+  Zero configuration — just install and go.
 
 url: https://github.com/hamdyelbatal122/security-bot
 
@@ -12,16 +13,16 @@ default_events:
   - pull_request
   - push
 
-# Required permissions
+# Required permissions for the GitHub App
 default_permissions:
-  # Read repo contents to fetch diffs
+  # Read repository contents to fetch and analyze code diffs
   contents: read
-  # Post comments and labels on issues/PRs
-  issues: write
+  # Post comments, labels, and manage pull request reviews
   pull_requests: write
-  # Post check runs with scan results
+  issues: write
+  # Post check runs with detailed scan results
   checks: write
-  # Apply branch protection rules
+  # Apply branch protection rules to new repositories
   administration: write
-  # Read metadata (required by all GitHub Apps)
+  # Required by all GitHub Apps for basic metadata
   metadata: read
