@@ -41,7 +41,7 @@ async function setupRepository(context) {
 
   // 1. Protect main/master branch
   try {
-    await octokit.repos.updateBranchProtection({
+    await octokit.rest.repos.updateBranchProtection({
       ...repo,
       branch: 'main',
       ...BRANCH_PROTECTION,
@@ -50,7 +50,7 @@ async function setupRepository(context) {
   } catch {
     // Try master if main doesn't exist yet
     try {
-      await octokit.repos.updateBranchProtection({
+      await octokit.rest.repos.updateBranchProtection({
         ...repo,
         branch: 'master',
         ...BRANCH_PROTECTION,
@@ -64,11 +64,11 @@ async function setupRepository(context) {
   // 2. Create standard labels (ignore if already exists)
   for (const label of LABELS) {
     try {
-      await octokit.issues.createLabel({ ...repo, ...label });
+      await octokit.rest.issues.createLabel({ ...repo, ...label });
     } catch {
       // Label already exists — update it
       try {
-        await octokit.issues.updateLabel({ ...repo, ...label });
+        await octokit.rest.issues.updateLabel({ ...repo, ...label });
       } catch { /* ignore */ }
     }
   }
@@ -76,7 +76,7 @@ async function setupRepository(context) {
 
   // 3. Open welcome issue
   try {
-    await octokit.issues.create({
+    await octokit.rest.issues.create({
       ...repo,
       title: WELCOME_ISSUE_TITLE,
       body: buildWelcomeBody(repo),
@@ -101,13 +101,13 @@ async function labelPullRequest(context, pullNumber, findings) {
   const securityLabels = LABELS.filter(l => l.name.startsWith('security:')).map(l => l.name);
 
   try {
-    const { data: current } = await context.octokit.issues.listLabelsOnIssue({
+    const { data: current } = await context.octokit.rest.issues.listLabelsOnIssue({
       ...repo,
       issue_number: pullNumber,
     });
     const toRemove = current.map(l => l.name).filter(n => securityLabels.includes(n));
     for (const name of toRemove) {
-      await context.octokit.issues.removeLabel({ ...repo, issue_number: pullNumber, name }).catch(() => {});
+      await context.octokit.rest.issues.removeLabel({ ...repo, issue_number: pullNumber, name }).catch(() => {});
     }
   } catch { /* ignore */ }
 
@@ -120,11 +120,23 @@ async function labelPullRequest(context, pullNumber, findings) {
     else                                     labelName = 'security:medium';
   }
 
-  await context.octokit.issues.addLabels({
-    ...repo,
-    issue_number: pullNumber,
-    labels: [labelName],
-  });
+  // Ensure the label exists before applying it
+  const labelDef = LABELS.find(l => l.name === labelName);
+  if (labelDef) {
+    try {
+      await context.octokit.rest.issues.createLabel({ ...repo, ...labelDef });
+    } catch { /* already exists */ }
+  }
+
+  try {
+    await context.octokit.rest.issues.addLabels({
+      ...repo,
+      issue_number: pullNumber,
+      labels: [labelName],
+    });
+  } catch (err) {
+    context.log.warn(`Could not add label ${labelName}:`, err.message);
+  }
 }
 
 /**
