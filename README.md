@@ -67,18 +67,36 @@ npm install
 
 # Create .env from example
 cp .env.example .env
-# Fill in: APP_ID, PRIVATE_KEY_PATH, WEBHOOK_SECRET
+# Fill in: APP_ID, WEBHOOK_SECRET, PRIVATE_KEY_PATH
 
-# Start with auto-reload
-npm run dev
+# Start Smee forwarding in one terminal
+npx smee -u https://smee.io/Fj2wCHQ3uZfiQf59 -t http://localhost:3000/api/webhook
 
-# Or run normally
-npm start
+# Start the app in another terminal
+npm run server
 ```
 
-Then open http://localhost:3000 to register the app.
+If you have not generated and downloaded your GitHub App private key yet, Probot will enter setup mode at `http://localhost:3000`. Once the private key exists locally, restart the server.
 
-### 3️⃣ Deployment
+### 3️⃣ Required Local Credentials
+
+You need these three values from your GitHub App settings page:
+
+- `APP_ID`
+- `WEBHOOK_SECRET`
+- `PRIVATE_KEY_PATH` pointing to your downloaded `.pem` file
+
+Example:
+
+```env
+APP_ID=123456
+WEBHOOK_SECRET=replace-with-your-secret
+PRIVATE_KEY_PATH=./private-key.pem
+WEBHOOK_PROXY_URL=https://smee.io/Fj2wCHQ3uZfiQf59
+PORT=3000
+```
+
+### 4️⃣ Deployment
 
 Deploy to **Heroku**, **Railway**, **Vercel**, or your own server:
 
@@ -177,8 +195,6 @@ Contributions are welcome! Please:
 4. Push and open a PR
 5. All tests must pass
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
 ---
 
 ## 📄 License
@@ -209,6 +225,9 @@ A: You can dismiss the review comment, and the bot won't object. If it's a recur
 
 **Q: Can I use this on private repositories?**  
 A: Yes! Install the app on private repos too.
+
+**Q: Why do I get `Private key does not exists at path`?**  
+A: Your `.env` points to `PRIVATE_KEY_PATH`, but the `.pem` file is not present yet. Generate a private key from your GitHub App settings, place it in the repo root, then restart `npm run server`.
 
 ---
 
