@@ -24,7 +24,7 @@
     "connect:url": "node ./scripts/connect-url.js",
     "demo:scan": "node ./scripts/demo-scan.js",
     "test:local": "node ./scripts/test-local.js",
-    "lint": "node --check index.js && node --check src/security-scanner.js && node --check src/repo-automation.js && node --check scripts/setup.js && node --check scripts/test-local.js && node --check scripts/demo-scan.js && node --check scripts/connect-url.js",
+    "lint": "node --check index.js && node --check src/security-scanner.js && node --check src/repo-automation.js && node --check src/event-bus.js && node --check src/dashboard.js && node --check scripts/setup.js && node --check scripts/test-local.js && node --check scripts/demo-scan.js && node --check scripts/connect-url.js",
     "server": "npm start"
   },
   "keywords": [

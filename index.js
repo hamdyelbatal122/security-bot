@@ -2,13 +2,39 @@
 
 const { scanPatch, buildSummaryComment, buildInlineComments } = require('./src/security-scanner');
 const { setupRepository, labelPullRequest } = require('./src/repo-automation');
+const eventBus = require('./src/event-bus');
+const { createDashboardHandler } = require('./src/dashboard');
+const pkg = require('./package.json');
 
 /**
  * Main Probot application entry point.
  * @param {import('probot').Probot} app
+ * @param {{ addHandler: function }} options
  */
-module.exports = (app) => {
+module.exports = (app, { addHandler } = {}) => {
   app.log.info('security-bot is running 🚀');
+
+  // ── Dashboard ──────────────────────────────────
+  if (addHandler) {
+    const port = process.env.PORT || '3000';
+    const localBase = 'http://localhost:' + port;
+    const publicBase = (process.env.APP_BASE_URL || '').replace(/\/$/, '');
+    const connectUrl = 'https://github.com/settings/apps/new?manifest_url=' + localBase + '/api/github/app-manifest';
+    const publicConnectUrl = publicBase
+      ? 'https://github.com/settings/apps/new?manifest_url=' + publicBase + '/api/github/app-manifest'
+      : '';
+
+    addHandler(createDashboardHandler({
+      appId: process.env.APP_ID || '',
+      port,
+      webhookProxyUrl: process.env.WEBHOOK_PROXY_URL || '',
+      connectUrl,
+      publicConnectUrl,
+    }));
+    app.log.info('Dashboard available at http://localhost:' + port + '/dashboard');
+  }
+
+  eventBus.emit('bot.started', { version: pkg.version });
 
   // ─────────────────────────────────────────────
   // EVENT 1: New repository created
@@ -16,6 +42,7 @@ module.exports = (app) => {
   // ─────────────────────────────────────────────
   app.on('repository.created', async (context) => {
     await setupRepository(context);
+    eventBus.emit('repo.setup', { repo: context.payload.repository.full_name });
   });
 
   // ─────────────────────────────────────────────
@@ -26,11 +53,14 @@ module.exports = (app) => {
   // → Apply security severity label
   // ─────────────────────────────────────────────
   app.on(['pull_request.opened', 'pull_request.synchronize', 'pull_request.reopened'], async (context) => {
-    try {
     const pr = context.payload.pull_request;
     const repo = context.repo();
+    const prId = pr.number;
+    const repoName = repo.owner + '/' + repo.repo;
 
-    app.log.info(`Scanning PR #${pr.number} in ${repo.owner}/${repo.repo}`);
+    try {
+    app.log.info(`Scanning PR #${prId} in ${repoName}`);
+    eventBus.emit('scan.started', { pr: prId, repo: repoName });
 
     // 1. Fetch all changed files with their diffs
     const { data: files } = await context.octokit.rest.pulls.listFiles({
@@ -48,6 +78,20 @@ module.exports = (app) => {
     }
 
     app.log.info(`Found ${allFindings.length} security issue(s) in PR #${pr.number}`);
+
+    // Emit individual findings to dashboard
+    for (const f of allFindings) {
+      eventBus.emit('scan.finding', {
+        pr: prId,
+        repo: repoName,
+        ruleId: f.rule.id,
+        severity: f.rule.severity,
+        description: f.rule.description,
+        filename: f.filename,
+        line: f.line,
+        code: f.code,
+      });
+    }
 
     // 3. Post inline review comments on affected lines
     const inlineComments = buildInlineComments(allFindings);
@@ -104,8 +148,19 @@ module.exports = (app) => {
 
     // 6. Label the PR by severity
     await labelPullRequest(context, pr.number, allFindings);
+
+    // Determine applied label for dashboard
+    const severities = allFindings.map(f => f.rule.severity);
+    let appliedLabel = 'security:clean';
+    if (severities.includes('CRITICAL'))  appliedLabel = 'security:critical';
+    else if (severities.includes('HIGH')) appliedLabel = 'security:high';
+    else if (allFindings.length > 0)      appliedLabel = 'security:medium';
+
+    eventBus.emit('scan.completed', { pr: prId, repo: repoName, count: allFindings.length, label: appliedLabel });
+
     } catch (err) {
       app.log.error('PR scan failed: ' + (err && err.message) + ' | ' + (err && err.stack));
+      eventBus.emit('scan.error', { pr: prId, repo: repoName, message: err && err.message });
     }
   });
 
@@ -159,5 +214,11 @@ module.exports = (app) => {
         labels: ['security:critical'],
       }).catch(() => {});
     }
+
+    eventBus.emit('push.scanned', {
+      repo: repo.owner + '/' + repo.repo,
+      branch: defaultBranch,
+      count: allFindings.length,
+    });
   });
 };
