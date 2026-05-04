@@ -26,13 +26,14 @@ module.exports = (app) => {
   // → Apply security severity label
   // ─────────────────────────────────────────────
   app.on(['pull_request.opened', 'pull_request.synchronize', 'pull_request.reopened'], async (context) => {
+    try {
     const pr = context.payload.pull_request;
     const repo = context.repo();
 
     app.log.info(`Scanning PR #${pr.number} in ${repo.owner}/${repo.repo}`);
 
     // 1. Fetch all changed files with their diffs
-    const { data: files } = await context.octokit.pulls.listFiles({
+    const { data: files } = await context.octokit.rest.pulls.listFiles({
       ...repo,
       pull_number: pr.number,
       per_page: 100,
@@ -52,7 +53,7 @@ module.exports = (app) => {
     const inlineComments = buildInlineComments(allFindings);
     if (inlineComments.length > 0) {
       try {
-        await context.octokit.pulls.createReview({
+        await context.octokit.rest.pulls.createReview({
           ...repo,
           pull_number: pr.number,
           commit_id: pr.head.sha,
@@ -69,7 +70,7 @@ module.exports = (app) => {
         app.log.warn('Could not post review comments:', err.message);
         // Fallback: post as individual PR comments
         for (const comment of inlineComments) {
-          await context.octokit.issues.createComment({
+          await context.octokit.rest.issues.createComment({
             ...repo,
             issue_number: pr.number,
             body: `**\`${comment.path}\` line ${comment.line}**\n\n${comment.body}`,
@@ -80,7 +81,7 @@ module.exports = (app) => {
 
     // 4. Delete previous summary comment from this bot (if any)
     try {
-      const { data: comments } = await context.octokit.issues.listComments({
+      const { data: comments } = await context.octokit.rest.issues.listComments({
         ...repo,
         issue_number: pr.number,
         per_page: 100,
@@ -90,12 +91,12 @@ module.exports = (app) => {
         c.body.includes('security-bot')
       );
       for (const c of botComments) {
-        await context.octokit.issues.deleteComment({ ...repo, comment_id: c.id }).catch(() => {});
+        await context.octokit.rest.issues.deleteComment({ ...repo, comment_id: c.id }).catch(() => {});
       }
     } catch { /* ignore */ }
 
     // 5. Post fresh summary comment
-    await context.octokit.issues.createComment({
+    await context.octokit.rest.issues.createComment({
       ...repo,
       issue_number: pr.number,
       body: buildSummaryComment(allFindings),
@@ -103,6 +104,9 @@ module.exports = (app) => {
 
     // 6. Label the PR by severity
     await labelPullRequest(context, pr.number, allFindings);
+    } catch (err) {
+      app.log.error('PR scan failed: ' + (err && err.message) + ' | ' + (err && err.stack));
+    }
   });
 
   // ─────────────────────────────────────────────
@@ -122,7 +126,7 @@ module.exports = (app) => {
     for (const commit of commits) {
       // Fetch the commit diff
       try {
-        const { data } = await context.octokit.repos.getCommit({
+        const { data } = await context.octokit.rest.repos.getCommit({
           ...repo,
           ref: commit.id,
         });
@@ -142,7 +146,7 @@ module.exports = (app) => {
     );
 
     if (criticalOrHigh.length > 0) {
-      await context.octokit.issues.create({
+      await context.octokit.rest.issues.create({
         ...repo,
         title: `🚨 Security issues detected in direct push to ${defaultBranch}`,
         body: [
