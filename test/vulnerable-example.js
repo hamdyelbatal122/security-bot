@@ -47,3 +47,4 @@ app.get('/file', (req, res) => {
   const content = fs.readFileSync('/var/data/' + filename);
   res.send(content);
 });
+// trigger webhook
